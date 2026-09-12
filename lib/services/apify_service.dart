@@ -19,6 +19,8 @@ class ApifyService {
   String? _toolName;
   int _nextId = 1;
 
+  Future<bool> get isConfigured async => ((await _storage.getApiKey('apify')) ?? '').isNotEmpty;
+
   Future<String> searchHomeDepot(String query, {int maxItems = 5}) async {
     final token = await _storage.getApiKey('apify');
     if (token == null || token.isEmpty) {

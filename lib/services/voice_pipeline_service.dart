@@ -128,6 +128,30 @@ class VoicePipelineService {
         _storageService = storageService {
     _wakeWordService = WakeWordService(_openaiService);
     _player.onPlayerStateChanged.listen(_driveLips);
+    // Keep the native player alive between clips: with the default release
+    // mode iOS occasionally drops onPlayerComplete for a sub-second clip that
+    // starts right after another one, leaving the face stuck on "speaking".
+    _player.setReleaseMode(ReleaseMode.stop);
+  }
+
+  /// Play one file and wait until it has finished. onPlayerComplete is the
+  /// primary signal; the clip's own length (known from the lip envelope) is
+  /// the backstop so a missed event costs ~1.5 s instead of a 60 s hang.
+  Future<void> _awaitPlayback(String path, {Duration fallback = const Duration(seconds: 60)}) async {
+    final completer = Completer<void>();
+    final sub = _player.onPlayerComplete.listen((_) {
+      if (!completer.isCompleted) completer.complete();
+    });
+    try {
+      await _player.play(DeviceFileSource(path));
+      final frames = _envelopes[path]?.length;
+      final limit = frames == null ? fallback : Duration(milliseconds: frames * _lipFrameMs + 1500);
+      await completer.future.timeout(limit, onTimeout: () {
+        debugPrint('Playback completion not reported for $path; moving on after $limit');
+      });
+    } finally {
+      await sub.cancel();
+    }
   }
 
   /// While a TTS file plays, emit its envelope value at the player's position.
@@ -1974,12 +1998,6 @@ Format note content nicely with line breaks, bullet points, and clear sections.
       String enhancedPrompt = personalityPrompt;
       if (noteToolsHandler != null) {
         enhancedPrompt += noteToolsHandler!.getActiveNoteContext(intents: intents);
-        // ponytail: store persona hardcoded (single-look demo); move to agent personality when other agents return
-        enhancedPrompt += '\n\nYou are a Home Depot store associate at the Rancho Mirage, CA store '
-            '(Palm Desert / ZIP ${ApifyService.zipCode} area). For any question about a product, its price, '
-            'whether it is in stock, or where to find it, call search_home_depot and answer in one or two '
-            'spoken sentences with price and availability. Aisle numbers are not available: offer to '
-            'call an associate.';
       }
 
       // Get only relevant tools based on detected intents
@@ -1997,7 +2015,17 @@ Format note content nicely with line breaks, bullet points, and clear sections.
           tools = [NoteToolsHandler.requestCapabilityTool];
           debugPrint('IntentRouter: Conversation only - just request_capability tool');
         }
-        tools.add(NoteToolsHandler.searchHomeDepotTool); // store questions come in any phrasing
+        // Live store search replaces the seeded inventory once an Apify token is saved
+        if (await noteToolsHandler!.useApify) {
+          tools.removeWhere((t) => const {'search_inventory', 'get_product_details'}
+              .contains((t['function'] as Map?)?['name']));
+          tools.add(NoteToolsHandler.searchHomeDepotTool);
+          enhancedPrompt += '\n\nYou are a Home Depot store associate at the Rancho Mirage, CA store '
+              '(Palm Desert / ZIP ${ApifyService.zipCode} area). For any question about a product, its price, '
+              'whether it is in stock, or where to find it, call search_home_depot and answer in one or two '
+              'spoken sentences with price and availability. Aisle numbers are not available: offer to '
+              'call an associate.';
+        }
       }
 
       // Check if alternative LLM handler is set (e.g., OpenClaw for conversation mode)
@@ -2364,20 +2392,7 @@ Format note content nicely with line breaks, bullet points, and clear sections.
 
         final audioPath = audioChunks[i];
         debugPrint('Playing audio chunk ${i + 1}/${audioChunks.length}');
-        
-        final completer = Completer<void>();
-        StreamSubscription<void>? subscription;
-        subscription = _player.onPlayerComplete.listen((_) {
-          if (!completer.isCompleted) {
-            completer.complete();
-            subscription?.cancel();
-          }
-        });
-        
-        await _player.play(DeviceFileSource(audioPath));
-        await completer.future.timeout(const Duration(seconds: 60), onTimeout: () {
-          subscription?.cancel();
-        });
+        await _awaitPlayback(audioPath);
       }
       
       debugPrint('Finished playing all ${audioChunks.length} audio chunks');
@@ -2460,27 +2475,7 @@ Format note content nicely with line breaks, bullet points, and clear sections.
       
       debugPrint('Playing audio file (${await audioFile.length()} bytes)');
       
-      // Use a Completer for more reliable completion detection
-      final completer = Completer<void>();
-      StreamSubscription<void>? subscription;
-      
-      subscription = _player.onPlayerComplete.listen((_) {
-        if (!completer.isCompleted) {
-          completer.complete();
-          subscription?.cancel();
-        }
-      });
-      
-      await _player.play(DeviceFileSource(audioPath));
-      debugPrint('Audio playback started, waiting for completion...');
-      
-      await completer.future.timeout(
-        const Duration(seconds: 60),
-        onTimeout: () {
-          debugPrint('Audio playback timed out');
-          subscription?.cancel();
-        },
-      );
+      await _awaitPlayback(audioPath);
       debugPrint('Audio playback completed');
     } catch (e, stackTrace) {
       debugPrint('Failed to play audio: $e');

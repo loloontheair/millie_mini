@@ -116,6 +116,9 @@ class NoteToolsHandler {
     _apifyService = service;
   }
 
+  /// True when live Home Depot search should replace the seeded inventory
+  Future<bool> get useApify async => await _apifyService?.isConfigured ?? false;
+
   /// Store product search; always offered to the LLM (see VoicePipelineService._callLLM)
   static Map<String, dynamic> get searchHomeDepotTool => {
         'type': 'function',
