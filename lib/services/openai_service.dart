@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:path_provider/path_provider.dart';
@@ -338,7 +339,7 @@ class OpenAIService {
       
       if (response.statusCode == 200) {
         // Save audio file
-        final audioPath = await _saveAudioFile(response.bodyBytes);
+        final audioPath = await _saveAudioFile(_fixWavSizes(response.bodyBytes));
         debugPrint('OpenAI TTS audio saved to: $audioPath');
         return audioPath;
       } else {
@@ -636,6 +637,21 @@ class OpenAIService {
         // The caller should handle playback since this service doesn't have AudioPlayer
       }
     }
+  }
+
+  /// OpenAI streams WAV with RIFF/data sizes left at 0xFFFFFFFF. iOS plays it
+  /// anyway; Android's MediaPlayer rejects it. Stamp the real sizes in place.
+  static Uint8List _fixWavSizes(Uint8List b) {
+    if (b.length < 44 || b[0] != 0x52 || b[1] != 0x49 || b[2] != 0x46 || b[3] != 0x46) return b;
+    final bd = ByteData.sublistView(b);
+    bd.setUint32(4, b.length - 8, Endian.little);
+    for (var i = 12; i + 8 <= b.length && i < 200; i++) {
+      if (b[i] == 0x64 && b[i + 1] == 0x61 && b[i + 2] == 0x74 && b[i + 3] == 0x61) {
+        bd.setUint32(i + 4, b.length - (i + 8), Endian.little); // 'data' payload length
+        break;
+      }
+    }
+    return b;
   }
 
   Future<String> _saveAudioFile(List<int> audioBytes) async {
