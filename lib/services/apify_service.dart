@@ -34,8 +34,7 @@ class ApifyService {
           'keywords': [query],
           'storeId': storeId,
           'zipCode': zipCode,
-          'maxItems': maxItems,
-          'maxItemsPerKeyword': maxItems,
+          'maxItems': maxItems, // hard cap; the actor refuses maxItemsPerKeyword < 24
         },
       });
       return _compact(result);
