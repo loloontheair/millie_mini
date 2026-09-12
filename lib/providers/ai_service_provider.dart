@@ -8,12 +8,26 @@ class AIServiceProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   String? _openaiApiKey;
+  String? _apifyToken;
 
   AIServiceProvider(this._storage);
 
   bool get isLoading => _isLoading;
   String? get error => _error;
   String? get openaiApiKey => _openaiApiKey;
+  String? get apifyToken => _apifyToken;
+
+  Future<bool> saveApifyToken(String token) async {
+    try {
+      await _storage.saveApiKey('apify', token);
+      _apifyToken = token;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      debugPrint('Error saving Apify token: $e');
+      return false;
+    }
+  }
 
   /// Check if OpenAI API key is configured
   bool get hasOpenAIKey => _openaiApiKey != null && _openaiApiKey!.isNotEmpty;
@@ -48,6 +62,7 @@ class AIServiceProvider extends ChangeNotifier {
     try {
       // Load API key from secure storage
       _openaiApiKey = await _storage.getApiKey('openai');
+      _apifyToken = await _storage.getApiKey('apify');
 
       debugPrint('AIServiceProvider init - OpenAI key loaded: $hasOpenAIKey');
     } catch (e) {

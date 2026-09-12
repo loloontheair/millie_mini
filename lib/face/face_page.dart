@@ -8,6 +8,7 @@ import '../utils/constants.dart';
 import '../services/services.dart';
 import 'face_eyes.dart';
 import 'face_mouth.dart';
+import 'hard_hat.dart';
 import 'control_bar.dart';
 
 class FacePage extends StatefulWidget {
@@ -234,6 +235,9 @@ class _FacePageState extends State<FacePage> {
                       children: [
                         const Spacer(flex: 1),
 
+                        HardHat(screenWidth: screenW),
+                        SizedBox(height: screenH * 0.02),
+
                         // Eyes
                         FaceEyes(
                           faceColor: agent.faceColor,
@@ -250,6 +254,7 @@ class _FacePageState extends State<FacePage> {
                           faceState: faceState,
                           screenWidth: screenW,
                           faceColor: agent.faceColor,
+                          level: voiceProvider.mouthLevel,
                         ),
 
                         const Spacer(flex: 1),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../models/models.dart';
 import '../services/custom_face_service.dart';
 import '../utils/constants.dart';
+import '../face/hard_hat.dart';
 
 class FacePreview extends StatelessWidget {
   final FaceColor faceColor;
@@ -79,7 +80,7 @@ class FacePreview extends StatelessWidget {
 
   Widget _buildRobotFace() {
     final eyeWidth = size * 0.24;
-    final eyeHeight = size * 0.32;
+    final eyeHeight = size * 0.22; // shorter to leave room for the hat
     final eyeGap = size * 0.08;
     final mouthWidth = size * 0.32;
     final mouthHeight = size * 0.025;
@@ -94,6 +95,8 @@ class FacePreview extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
+          HardHat(screenWidth: size * 0.9),
+          SizedBox(height: size * 0.03),
           // Eyes
           Row(
             mainAxisAlignment: MainAxisAlignment.center,

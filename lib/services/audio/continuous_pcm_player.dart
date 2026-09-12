@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:math' as math;
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_sound/flutter_sound.dart';
 import 'assistant_audio_buffer.dart';
@@ -60,6 +62,10 @@ class ContinuousPcmPlayer {
   void Function()? onPlaybackComplete;
   void Function(String error)? onError;
   void Function(String event, Map<String, dynamic> data)? onDiagnostic;
+  /// RMS level 0..1 of each fed chunk (for lip sync)
+  void Function(double level)? onLevel;
+  // ponytail: 6000 RMS = mouth fully open; tune if the voice gain changes
+  static const double _fullOpenRms = 6000;
 
   ContinuousPcmPlayer();
 
@@ -180,6 +186,17 @@ class ContinuousPcmPlayer {
           sink.add(pcmData);
           _totalBytesPlayed += pcmData.length;
           _feedCount++;
+          if (onLevel != null) {
+            final bd = pcmData.buffer.asByteData(pcmData.offsetInBytes, pcmData.length);
+            var sum = 0.0;
+            var c = 0;
+            for (var i = 0; i + 1 < pcmData.length; i += 16) {
+              final v = bd.getInt16(i, Endian.little).toDouble();
+              sum += v * v;
+              c++;
+            }
+            onLevel!(c == 0 ? 0 : (math.sqrt(sum / c) / _fullOpenRms).clamp(0.0, 1.0));
+          }
         } else {
           debugPrint('🔊 [PCMPlayer] WARNING: uint8ListSink is null!');
         }

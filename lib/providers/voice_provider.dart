@@ -9,6 +9,7 @@ import '../services/reminder_intent_handler.dart';
 import '../services/reminder_scheduler_service.dart';
 import '../services/note_tools_handler.dart';
 import '../services/weather_service.dart';
+import '../services/apify_service.dart';
 import '../services/openai_service.dart' show ToolCall;
 import 'reminder_provider.dart';
 import 'openclaw_provider.dart';
@@ -24,6 +25,8 @@ class VoiceProvider extends ChangeNotifier {
   final NoteToolsHandler _noteToolsHandler = NoteToolsHandler();
 
   VoiceState _state = VoiceState.sleep;
+  /// Live voice level 0..1 while speaking; drives the lips without rebuilding the page
+  final ValueNotifier<double> mouthLevel = ValueNotifier(0.0);
   Conversation? _conversation;
   bool _isWakeWordActive = false;
   String? _error;
@@ -41,6 +44,7 @@ class VoiceProvider extends ChangeNotifier {
     _pipeline.noteToolsHandler = _noteToolsHandler;
     _realtimeService = RealtimeVoiceService();
     _realtimeService.noteToolsHandler = _noteToolsHandler;
+    _noteToolsHandler.setApifyService(ApifyService(storageService));
     _setupPipelineCallbacks();
     _setupRealtimeCallbacks();
   }
@@ -186,6 +190,8 @@ class VoiceProvider extends ChangeNotifier {
       transitionTo(state);
     };
 
+    _pipeline.onMouthLevel = (level) => mouthLevel.value = level;
+
     _pipeline.onTranscription = (transcription) {
       _lastTranscription = transcription;
 
@@ -219,6 +225,8 @@ class VoiceProvider extends ChangeNotifier {
 
   /// Setup callbacks from realtime voice service
   void _setupRealtimeCallbacks() {
+    _realtimeService.onMouthLevel = (level) => mouthLevel.value = level;
+
     _realtimeService.onStateChange = (state) {
       // Map RealtimeVoiceState to VoiceState
       switch (state) {

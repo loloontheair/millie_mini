@@ -5,6 +5,7 @@ class AppColors {
   static const Color dreamCloudBlue = Color(0xFF30C1FF);
   static const Color faceBackground = Color(0xFF000000); // Pure black
   static const Color primaryOrange = Color(0xFFFF6B35);
+  static const Color homeDepotOrange = Color(0xFFF96302);
   
   // UI colors
   static const Color cardBackground = Colors.white;

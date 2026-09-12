@@ -39,19 +39,21 @@ android {
     }
 
     // Signing configuration for release builds
-    signingConfigs {
-        create("release") {
-            keyAlias = keystoreProperties["keyAlias"] as String
-            keyPassword = keystoreProperties["keyPassword"] as String
-            storeFile = file(keystoreProperties["storeFile"] as String)
-            storePassword = keystoreProperties["storePassword"] as String
+    // key.properties is not in git; without it, release falls back to the debug key
+    if (keystorePropertiesFile.exists()) {
+        signingConfigs {
+            create("release") {
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+                storeFile = file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+            }
         }
-    }
-
-    buildTypes {
-        release {
-            // Use the release signing config with your production keystore
-            signingConfig = signingConfigs.getByName("release")
+        buildTypes {
+            release {
+                // Use the release signing config with your production keystore
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 }

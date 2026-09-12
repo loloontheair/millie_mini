@@ -6,6 +6,7 @@ import 'intent_router.dart';
 import 'notes_service.dart';
 import 'openai_service.dart';
 import 'weather_service.dart';
+import 'apify_service.dart';
 
 /// Result of executing an AI tool
 class AIToolResult {
@@ -91,6 +92,31 @@ class NoteToolsHandler {
   void setWeatherService(WeatherService service) {
     _weatherService = service;
   }
+
+  ApifyService? _apifyService;
+  void setApifyService(ApifyService service) {
+    _apifyService = service;
+  }
+
+  /// Store product search; always offered to the LLM (see VoicePipelineService._callLLM)
+  static Map<String, dynamic> get searchHomeDepotTool => {
+        'type': 'function',
+        'function': {
+          'name': 'search_home_depot',
+          'description': 'Search Home Depot products at this store: price, brand, availability, item number. '
+              'Use for any question about a product, its price, whether it is in stock, or where to find it.',
+          'parameters': {
+            'type': 'object',
+            'properties': {
+              'query': {
+                'type': 'string',
+                'description': 'Product search terms, e.g. "cordless drill", "gallon white interior paint"',
+              },
+            },
+            'required': ['query'],
+          },
+        },
+      };
 
   
   /// Callback when active note changes (for UI updates)
@@ -771,6 +797,12 @@ class NoteToolsHandler {
       // App launcher
       case 'open_app':
         return await _openApp(toolCall.arguments);
+      case 'search_home_depot':
+        final query = toolCall.arguments['query'] as String? ?? '';
+        return AIToolResult(
+          success: true,
+          message: await _apifyService?.searchHomeDepot(query) ?? 'Store search not configured',
+        );
       // Capability request (triggers retry with requested tools)
       case 'request_capability':
         return _requestCapability(toolCall.arguments);

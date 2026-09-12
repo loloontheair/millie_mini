@@ -7,6 +7,7 @@ import '../utils/constants.dart';
 import '../widgets/widgets.dart';
 import 'face_eyes.dart';
 import 'face_mouth.dart';
+import 'hard_hat.dart';
 import 'control_bar.dart';
 
 /// Face page content for use within ConversationPage's PageView
@@ -179,6 +180,8 @@ class _FacePageContentState extends State<FacePageContent> {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         const Spacer(flex: 1),
+        HardHat(screenWidth: screenW),
+        SizedBox(height: screenH * 0.02),
         FaceEyes(
           faceColor: agent.faceColor,
           eyeShape: agent.eyeShape,
@@ -191,6 +194,7 @@ class _FacePageContentState extends State<FacePageContent> {
           faceState: voiceProvider.faceState,
           screenWidth: screenW,
           faceColor: agent.faceColor,
+          level: voiceProvider.mouthLevel,
         ),
         const Spacer(flex: 1),
         Padding(

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -16,6 +17,7 @@ import 'openai_service.dart';
 import 'storage_service.dart';
 import 'note_tools_handler.dart';
 import 'intent_router.dart';
+import 'apify_service.dart';
 
 /// Voice Pipeline Service
 /// Implements the non-streaming voice pipeline:
@@ -84,6 +86,13 @@ class VoicePipelineService {
   Function(String)? onError;
   Function()? onWakeWordDetected;
 
+  /// Audio level 0..1 of the voice being played, ~25x/s, for lip sync
+  Function(double)? onMouthLevel;
+  // ponytail: envelopes cached per TTS file, never evicted (temp files are small and few per session)
+  final Map<String, List<double>> _envelopes = {};
+  Timer? _lipTimer;
+  static const _lipFrameMs = 40;
+
   /// Called when TTS playback completes (for game/lesson mode FSM)
   Function()? onTTSPlaybackComplete;
 
@@ -117,6 +126,53 @@ class VoicePipelineService {
       : _openaiService = OpenAIService(storageService),
         _storageService = storageService {
     _wakeWordService = WakeWordService(_openaiService);
+    _player.onPlayerStateChanged.listen(_driveLips);
+  }
+
+  /// While a TTS file plays, emit its envelope value at the player's position.
+  void _driveLips(PlayerState state) {
+    _lipTimer?.cancel();
+    onMouthLevel?.call(0);
+    if (state != PlayerState.playing) return;
+    final src = _player.source;
+    final env = src is DeviceFileSource ? _envelopes[src.path] : null;
+    if (env == null) return;
+    _lipTimer = Timer.periodic(const Duration(milliseconds: _lipFrameMs), (_) async {
+      final pos = await _player.getCurrentPosition();
+      if (pos == null) return;
+      final i = pos.inMilliseconds ~/ _lipFrameMs;
+      onMouthLevel?.call(i < env.length ? env[i] : 0);
+    });
+  }
+
+  /// RMS per frame of a 16-bit mono WAV, normalized to its own peak.
+  static List<double> _wavEnvelope(Uint8List bytes, {int sampleRate = 24000}) {
+    var start = 44;
+    for (var i = 12; i < math.min(bytes.length - 8, 200); i++) {
+      if (bytes[i] == 0x64 && bytes[i + 1] == 0x61 && bytes[i + 2] == 0x74 && bytes[i + 3] == 0x61) {
+        start = i + 8; // 'data' chunk payload
+        break;
+      }
+    }
+    final data = bytes.buffer.asByteData(bytes.offsetInBytes + start, bytes.length - start);
+    final n = data.lengthInBytes ~/ 2;
+    final per = sampleRate * _lipFrameMs ~/ 1000;
+    final out = <double>[];
+    var peak = 1e-9;
+    for (var i = 0; i < n; i += per) {
+      final end = math.min(i + per, n);
+      var sum = 0.0;
+      var c = 0;
+      for (var j = i; j < end; j += 4) {
+        final v = data.getInt16(j * 2, Endian.little).toDouble();
+        sum += v * v;
+        c++;
+      }
+      final r = c == 0 ? 0.0 : math.sqrt(sum / c);
+      out.add(r);
+      if (r > peak) peak = r;
+    }
+    return out.map((r) => (r / peak).clamp(0.0, 1.0)).toList();
   }
   
   bool get isRecording => _isRecording;
@@ -1916,6 +1972,12 @@ Format note content nicely with line breaks, bullet points, and clear sections.
       String enhancedPrompt = personalityPrompt;
       if (noteToolsHandler != null) {
         enhancedPrompt += noteToolsHandler!.getActiveNoteContext(intents: intents);
+        // ponytail: store persona hardcoded (single-look demo); move to agent personality when other agents return
+        enhancedPrompt += '\n\nYou are a Home Depot store associate at the Rancho Mirage, CA store '
+            '(Palm Desert / ZIP ${ApifyService.zipCode} area). For any question about a product, its price, '
+            'whether it is in stock, or where to find it, call search_home_depot and answer in one or two '
+            'spoken sentences with price and availability. Aisle numbers are not available: offer to '
+            'call an associate.';
       }
 
       // Get only relevant tools based on detected intents
@@ -1933,6 +1995,7 @@ Format note content nicely with line breaks, bullet points, and clear sections.
           tools = [NoteToolsHandler.requestCapabilityTool];
           debugPrint('IntentRouter: Conversation only - just request_capability tool');
         }
+        tools.add(NoteToolsHandler.searchHomeDepotTool); // store questions come in any phrasing
       }
 
       // Check if alternative LLM handler is set (e.g., OpenClaw for conversation mode)
@@ -2181,6 +2244,11 @@ Format note content nicely with line breaks, bullet points, and clear sections.
       
       if (audioPath != null && audioPath.isNotEmpty) {
         debugPrint('TTS audio generated: $audioPath');
+        try {
+          _envelopes[audioPath] = _wavEnvelope(await File(audioPath).readAsBytes());
+        } catch (e) {
+          debugPrint('Lip envelope skipped: $e');
+        }
         return audioPath;
       }
       

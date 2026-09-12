@@ -71,6 +71,8 @@ class RealtimeVoiceService {
 
   // Callbacks
   void Function(RealtimeVoiceState state)? onStateChange;
+  /// Audio level 0..1 of the assistant voice, for lip sync
+  void Function(double level)? onMouthLevel;
   void Function(String text)? onTranscription;
   void Function(String text)? onResponse;
   void Function(String error)? onError;
@@ -110,6 +112,8 @@ class RealtimeVoiceService {
     _audioBuffer.onUnderrun = () {
       debugPrint('⚠️ [Realtime] Buffer underrun');
     };
+
+    _player.onLevel = (level) => onMouthLevel?.call(level);
 
     _player.onStateChange = (state) {
       debugPrint('🔊 [Realtime] Player state: ${state.name}');

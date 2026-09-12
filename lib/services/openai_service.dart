@@ -318,7 +318,7 @@ class OpenAIService {
         'model': model,
         'input': text,
         'voice': voice.toLowerCase(),
-        'response_format': 'mp3',
+        'response_format': 'wav', // PCM so the face can read a lip-sync envelope
       };
       
       debugPrint('Calling OpenAI TTS API...');
@@ -641,7 +641,7 @@ class OpenAIService {
   Future<String> _saveAudioFile(List<int> audioBytes) async {
     try {
       final directory = await getTemporaryDirectory();
-      final filePath = '${directory.path}/millie_tts_${DateTime.now().millisecondsSinceEpoch}.mp3';
+      final filePath = '${directory.path}/millie_tts_${DateTime.now().millisecondsSinceEpoch}.wav';
       final file = File(filePath);
       await file.writeAsBytes(audioBytes);
       debugPrint('Saved ${audioBytes.length} bytes to: $filePath');

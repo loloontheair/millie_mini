@@ -20,6 +20,7 @@ class AIServicesPage extends StatefulWidget {
 
 class _AIServicesPageState extends State<AIServicesPage> {
   final _openaiKeyController = TextEditingController();
+  final _apifyTokenController = TextEditingController();
   bool _isTestingOpenAI = false;
   bool _openaiTestPassed = false;
   String? _openaiTestError;
@@ -37,11 +38,13 @@ class _AIServicesPageState extends State<AIServicesPage> {
     if (aiProvider.openaiApiKey != null) {
       _openaiKeyController.text = aiProvider.openaiApiKey!;
     }
+    _apifyTokenController.text = aiProvider.apifyToken ?? '';
   }
 
   @override
   void dispose() {
     _openaiKeyController.dispose();
+    _apifyTokenController.dispose();
     super.dispose();
   }
 
@@ -96,6 +99,7 @@ class _AIServicesPageState extends State<AIServicesPage> {
     if (openaiKey.isNotEmpty) {
       saved = await aiProvider.saveOpenAIKey(openaiKey) && saved;
     }
+    saved = await aiProvider.saveApifyToken(_apifyTokenController.text.trim()) && saved;
 
     if (saved) {
       setState(() {
@@ -288,6 +292,39 @@ class _AIServicesPageState extends State<AIServicesPage> {
                       ),
                     ),
                   ],
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacing.lg),
+
+            // Apify token (Home Depot store search via mcp.apify.com)
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(AppBorderRadius.card),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Apify API Token', style: AppTextStyles.heading3),
+                  const SizedBox(height: 4),
+                  const Text(
+                    'Home Depot product search for in-store questions (console.apify.com → Settings → API)',
+                    style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  TextField(
+                    controller: _apifyTokenController,
+                    obscureText: true,
+                    onChanged: (_) => setState(() => _hasChanges = true),
+                    decoration: InputDecoration(
+                      hintText: 'apify_api_...',
+                      filled: true,
+                      fillColor: Colors.grey.shade50,
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
                 ],
               ),
             ),
