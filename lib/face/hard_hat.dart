@@ -20,13 +20,20 @@ class HardHat extends StatelessWidget {
           CustomPaint(size: Size(w, h), painter: _HardHatPainter()),
           // Brand badge on the dome (asset shipped in the repo)
           Positioned(
-            top: h * 0.22,
-            child: Image.asset(
-              'assets/icon/home_depot.png',
-              width: w * 0.22,
-              height: w * 0.22,
-              fit: BoxFit.contain,
-              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            top: h * 0.2,
+            child: Container(
+              padding: EdgeInsets.all(w * 0.015),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(w * 0.02),
+              ),
+              child: Image.asset(
+                'assets/icon/home_depot.png',
+                width: w * 0.2,
+                height: w * 0.2,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+              ),
             ),
           ),
         ],
@@ -56,12 +63,6 @@ class _HardHatPainter extends CustomPainter {
       ..close();
     canvas.drawPath(dome, Paint()..color = orange);
 
-    // Center ridge highlight
-    final ridge = RRect.fromRectAndRadius(
-      Rect.fromLTWH(w * 0.44, h * 0.05, w * 0.12, h * 0.78),
-      Radius.circular(w * 0.06),
-    );
-    canvas.drawRRect(ridge, Paint()..color = Colors.white.withOpacity(0.28));
   }
 
   @override
