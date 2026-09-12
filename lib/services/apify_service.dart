@@ -26,24 +26,27 @@ class ApifyService {
     if (token == null || token.isEmpty) {
       return 'Store search is not configured: add the Apify token in AI Service Settings.';
     }
-    try {
-      _toolName ??= await _connect(token);
-      final result = await _rpc(token, 'tools/call', {
-        'name': _toolName,
-        'arguments': {
-          'keywords': [query],
-          'storeId': storeId,
-          'zipCode': zipCode,
-          'maxItems': maxItems, // hard cap; the actor refuses maxItemsPerKeyword < 24
-        },
-      });
-      return _compact(result);
-    } catch (e) {
-      debugPrint('Apify search failed: $e');
-      _toolName = null;
-      _sessionId = null;
-      return 'Store search failed: $e';
+    final args = {
+      'keywords': [query],
+      'storeId': storeId,
+      'zipCode': zipCode,
+      'maxItems': maxItems, // hard cap; the actor refuses maxItemsPerKeyword < 24
+    };
+    // The server drops idle sessions; a stale id comes back as "Session ID ... not found".
+    // Reconnect once and retry before giving up.
+    for (var attempt = 0; attempt < 2; attempt++) {
+      try {
+        _toolName ??= await _connect(token);
+        final result = await _rpc(token, 'tools/call', {'name': _toolName, 'arguments': args});
+        return _compact(result);
+      } catch (e) {
+        debugPrint('Apify search failed (attempt ${attempt + 1}): $e');
+        _toolName = null;
+        _sessionId = null;
+        if (attempt == 1 || !e.toString().contains('Session ID')) return 'Store search failed: $e';
+      }
     }
+    return 'Store search failed';
   }
 
   Future<String> _connect(String token) async {
