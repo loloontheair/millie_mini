@@ -107,6 +107,8 @@ class VoiceTriggers {
   ];
   
   static const List<String> resumeTriggers = [
+    'hey homie',
+    'homie',
     'hey millie',
     'millie',
   ];

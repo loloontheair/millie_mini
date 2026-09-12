@@ -198,7 +198,7 @@ class Agent {
     final now = DateTime.now();
     return Agent(
       id: 'default_agent',
-      name: 'Millie',
+      name: 'Homie',
       faceColor: FaceColor.white,
       eyeShape: EyeShape.roundedSquares,
       aiServiceId: 'openai_default',

@@ -11,6 +11,7 @@ import '../services/note_tools_handler.dart';
 import '../services/weather_service.dart';
 import '../services/apify_service.dart';
 import '../services/openai_service.dart' show ToolCall;
+import 'inventory_provider.dart';
 import 'reminder_provider.dart';
 import 'openclaw_provider.dart';
 
@@ -56,6 +57,12 @@ class VoiceProvider extends ChangeNotifier {
     // Also inject into note tools handler for unified AI schedule operations
     _noteToolsHandler.setReminderProvider(reminderProvider);
     debugPrint('VoiceProvider: ReminderIntentHandler and schedule tools initialized');
+  }
+
+  /// Give the AI access to store inventory for product location questions
+  void setInventoryProvider(InventoryProvider inventoryProvider) {
+    _noteToolsHandler.setInventoryProvider(inventoryProvider);
+    debugPrint('VoiceProvider: Inventory tools initialized');
   }
 
   /// Set up WeatherService with API key
@@ -207,8 +214,9 @@ class VoiceProvider extends ChangeNotifier {
     };
 
     _pipeline.onResponse = (response) async {
-      _lastResponse = response;
-      addAssistantMessage(response);
+      final plain = stripMarkdown(response);
+      _lastResponse = plain;
+      addAssistantMessage(plain);
       notifyListeners();
     };
 
@@ -250,8 +258,9 @@ class VoiceProvider extends ChangeNotifier {
     };
 
     _realtimeService.onResponse = (response) {
-      _lastResponse = response;
-      addAssistantMessage(response);
+      final plain = stripMarkdown(response);
+      _lastResponse = plain;
+      addAssistantMessage(plain);
       notifyListeners();
     };
 
@@ -370,6 +379,10 @@ class VoiceProvider extends ChangeNotifier {
   String _buildRealtimeSystemPrompt(String personalityPrompt) {
     final buffer = StringBuffer();
     buffer.writeln(personalityPrompt);
+    buffer.writeln();
+    buffer.writeln('You are speaking out loud. Never use markdown, asterisks, or bullet points. '
+        'Say measurements and product sizes in words ("two and a half inch", not "2-1/2 in."), '
+        'and refer to store products by their spoken_name.');
     buffer.writeln();
     buffer.writeln('Current date/time: ${DateTime.now().toIso8601String()}');
     if (_pendingUsername != null) {

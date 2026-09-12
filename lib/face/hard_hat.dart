@@ -10,7 +10,28 @@ class HardHat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final w = screenWidth * 0.78;
-    return CustomPaint(size: Size(w, w * 0.42), painter: _HardHatPainter());
+    final h = w * 0.42;
+    return SizedBox(
+      width: w,
+      height: h,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          CustomPaint(size: Size(w, h), painter: _HardHatPainter()),
+          // Brand badge on the dome (asset shipped in the repo)
+          Positioned(
+            top: h * 0.22,
+            child: Image.asset(
+              'assets/icon/home_depot.png',
+              width: w * 0.22,
+              height: w * 0.22,
+              fit: BoxFit.contain,
+              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

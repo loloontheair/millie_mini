@@ -71,7 +71,7 @@ class AgentProvider extends ChangeNotifier {
         final now = DateTime.now();
         final defaultAgent = Agent(
           id: _uuid.v4(),
-          name: 'Millie',
+          name: 'Homie',
           faceColor: FaceColor.white,
           eyeShape: EyeShape.roundedSquares,
           aiServiceId: 'openai_default',
